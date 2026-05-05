@@ -229,7 +229,7 @@ def build_video(script):
     display_text = display_text.replace("'", "").replace(":", "").replace(",", "")
 
     command = [
-        "ffmpeg", "-y",
+        "ffmpeg" if os.name != "nt" else ".\\ffmpeg.exe", "-y",
         "-stream_loop", "-1",
         "-t", "60",
         "-i", "background.mp4",
