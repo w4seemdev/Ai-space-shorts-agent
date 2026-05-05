@@ -46,7 +46,12 @@ jobs:
           sed -i 's/\.\\ffmpeg\.exe/ffmpeg/g' agent.py
 
       - name: Run agent
+        env:
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
         run: python agent.py
 
       - name: Upload to YouTube
+        env:
+          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
         run: python upload.py
