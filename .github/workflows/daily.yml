@@ -22,7 +22,7 @@ jobs:
         run: sudo apt-get install -y ffmpeg
 
       - name: Install Python packages
-        run: pip install groq python-dotenv edge-tts google-auth-oauthlib google-api-python-client schedule
+        run: pip install groq python-dotenv edge-tts google-auth-oauthlib google-api-python-client schedule schedule
 
       - name: Download background video
         run: |
