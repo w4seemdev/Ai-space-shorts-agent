@@ -1,0 +1,52 @@
+name: Daily Space Shorts Agent
+
+on:
+  schedule:
+    - cron: "0 7 * * *" # Every day at 7:00 AM UTC (9:00 AM Jordan time)
+  workflow_dispatch: # Also allows manual trigger
+
+jobs:
+  create-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+
+      - name: Install FFmpeg
+        run: sudo apt-get install -y ffmpeg
+
+      - name: Install Python packages
+        run: pip install groq python-dotenv edge-tts google-auth-oauthlib google-api-python-client
+
+      - name: Download background video
+        run: |
+          curl -L "https://www.pexels.com/download/video/854671/" -o background.mp4 || \
+          curl -L "https://download.samplelib.com/mp4/sample-5s.mp4" -o background.mp4
+
+      - name: Create .env file
+        run: |
+          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
+
+      - name: Create token.json
+        run: |
+          echo '${{ secrets.YOUTUBE_TOKEN }}' > token.json
+
+      - name: Create client_secrets.json
+        run: |
+          echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
+
+      - name: Update agent.py for Linux
+        run: |
+          sed -i 's/\.\\ffmpeg\.exe/ffmpeg/g' agent.py
+
+      - name: Run agent
+        run: python agent.py
+
+      - name: Upload to YouTube
+        run: python upload.py
