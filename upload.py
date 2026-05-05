@@ -1,34 +1,27 @@
 import os
 import json
 from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.upload"]
-TOKEN_FILE = "token.json"
-CLIENT_SECRETS = "client_secrets.json"
 
 def get_youtube_client():
-    creds = None
-
-    # Load saved token if exists
-    if os.path.exists(TOKEN_FILE):
-        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-
-    # If no valid token, login
-    if not creds or not creds.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRETS, SCOPES)
-        creds = flow.run_local_server(port=0)
-        # Save token for next time
-        with open(TOKEN_FILE, "w") as f:
-            f.write(creds.to_json())
-
+    token_data = os.getenv("YOUTUBE_TOKEN")
+    if not token_data:
+        raise Exception("❌ YOUTUBE_TOKEN not found!")
+    
+    token_info = json.loads(token_data)
+    creds = Credentials.from_authorized_user_info(token_info, SCOPES)
+    
+    if creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+    
     return build("youtube", "v3", credentials=creds)
 
 def upload_video(title, description="Auto-generated space facts Short!"):
     print("📤 Uploading to YouTube...")
-
     youtube = get_youtube_client()
 
     request = youtube.videos().insert(
@@ -38,7 +31,7 @@ def upload_video(title, description="Auto-generated space facts Short!"):
                 "title": title,
                 "description": description,
                 "tags": ["space", "facts", "shorts", "science", "nasa"],
-                "categoryId": "28"  # Science & Technology
+                "categoryId": "28"
             },
             "status": {
                 "privacyStatus": "public",
@@ -53,6 +46,5 @@ def upload_video(title, description="Auto-generated space facts Short!"):
     print(f"✅ Uploaded! Watch at: https://youtube.com/shorts/{video_id}")
     return video_id
 
-# Test it
 if __name__ == "__main__":
     upload_video("Amazing Space Facts! #shorts #space")
