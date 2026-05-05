@@ -26,7 +26,6 @@ jobs:
 
       - name: Download background video
         run: |
-          curl -L "https://www.pexels.com/download/video/854671/" -o background.mp4 || \
           curl -L "https://download.samplelib.com/mp4/sample-5s.mp4" -o background.mp4
 
       - name: Create .env file
