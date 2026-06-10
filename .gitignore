@@ -1,0 +1,25 @@
+# Local env / secrets (keep .env.example, never commit real secrets)
+.env
+.env.*
+!.env.example
+token.json
+client_secrets.json
+*.pem
+*.key
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+
+# Media outputs
+*.mp4
+*.mp3
+
+# OS
+.DS_Store
