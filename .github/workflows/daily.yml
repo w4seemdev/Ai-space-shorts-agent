@@ -5,52 +5,44 @@ on:
     - cron: "0 7 * * *" # Every day at 7:00 AM UTC (9:00 AM Jordan time)
   workflow_dispatch: # Also allows manual trigger
 
+# Never run two uploads at once (e.g. schedule + manual overlap).
+concurrency:
+  group: space-shorts
+  cancel-in-progress: false
+
 jobs:
   create-and-upload:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+          cache: "pip"
 
-      - name: Install FFmpeg
-        run: sudo apt-get install -y ffmpeg
+      - name: Install FFmpeg + caption fonts
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fonts-dejavu-core
 
       - name: Install Python packages
-        run: pip install groq python-dotenv edge-tts google-auth-oauthlib google-api-python-client schedule schedule
+        run: pip install -r requirements.txt
 
       - name: Download background video
-        run: |
-          curl -L "https://download.samplelib.com/mp4/sample-5s.mp4" -o background.mp4
+        run: curl -L "https://download.samplelib.com/mp4/sample-5s.mp4" -o background.mp4
 
-      - name: Create .env file
-        run: |
-          echo "GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}" > .env
-
-      - name: Create token.json
-        run: |
-          echo '${{ secrets.YOUTUBE_TOKEN }}' > token.json
-
-      - name: Create client_secrets.json
-        run: |
-          echo '${{ secrets.CLIENT_SECRETS }}' > client_secrets.json
-
-      - name: Update agent.py for Linux
-        run: |
-          sed -i 's/\.\\ffmpeg\.exe/ffmpeg/g' agent.py
-
-      - name: Run agent
+      - name: Write secrets to local files
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
-        run: python agent.py
+          CLIENT_SECRETS: ${{ secrets.CLIENT_SECRETS }}
+        run: |
+          printf 'GROQ_API_KEY=%s\n' "$GROQ_API_KEY" > .env
+          printf '%s' "$YOUTUBE_TOKEN" > token.json
+          printf '%s' "$CLIENT_SECRETS" > client_secrets.json
 
-      - name: Upload to YouTube
-        env:
-          YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
-        run: python upload.py
+      - name: Run agent (generates + uploads in one pass)
+        run: python agent.py

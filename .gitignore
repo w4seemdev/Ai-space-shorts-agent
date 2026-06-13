@@ -17,9 +17,16 @@ __pycache__/
 node_modules/
 dist/
 
-# Media outputs
+# Media outputs & generated artifacts
 *.mp4
 *.mp3
+*.ass
+subtitles.vtt
+history.json
+
+# Bundled binaries (CI installs ffmpeg via apt; never commit the 197MB exe)
+*.exe
+ffmpeg.exe
 
 # OS
 .DS_Store

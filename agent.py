@@ -1,377 +1,178 @@
+"""
+Space Shorts Agent — generates a unique space/science YouTube Short end to end:
+script (Groq LLM) -> voiceover + word-synced captions (edge-tts) -> vertical
+video (ffmpeg) -> upload (YouTube Data API).
 
-# from groq import Groq
-# from dotenv import load_dotenv
-# import os
-# import json
-# import asyncio
-# import edge_tts
-# import subprocess
-# import random
+Run locally:        python agent.py
+Build but skip upload:  DRY_RUN=1 python agent.py     (PowerShell: $env:DRY_RUN=1)
+"""
 
-# load_dotenv()
-
-# groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-
-# def generate_script():
-#     print("🤖 Generating script...")
-#     random_seed = os.urandom(8).hex()
-
-#     topics = [
-#         "Black holes and what happens if you fall in",
-#         "Neutron stars spinning 700 times per second",
-#         "White dwarfs slowly cooling for trillions of years",
-#         "Magnetars with the strongest magnetic fields in the universe",
-#         "Red giants swallowing their planets",
-#         "Supernovas brighter than entire galaxies",
-#         "Gamma ray bursts the most powerful explosions ever",
-#         "Binary star systems orbiting each other",
-#         "Rogue stars ejected from galaxies at millions of mph",
-#         "Venus hotter than Mercury despite being farther from the Sun",
-#         "Jupiters Great Red Spot storm bigger than Earth",
-#         "Saturns rings made of billions of ice chunks",
-#         "Titan Saturns moon with lakes of liquid methane",
-#         "Europas ocean hidden under miles of ice",
-#         "Uranus rotates on its side",
-#         "Neptunes wind speeds of 1500 mph",
-#         "Plutos heart-shaped nitrogen glacier",
-#         "The Milky Way is on a collision course with Andromeda",
-#         "Supermassive black holes at the center of every galaxy",
-#         "The Great Attractor pulling everything including us",
-#         "Quasars brighter than a trillion suns",
-#         "Dark matter making up 27 percent of the universe",
-#         "Dark energy causing the universe to expand faster",
-#         "Time slows down near massive objects time dilation",
-#         "Wormholes shortcuts through space-time",
-#         "The universe might be inside a black hole",
-#         "Parallel universes in the multiverse theory",
-#         "Hawking radiation black holes slowly evaporate",
-#         "Spaghettification what happens near a black hole",
-#         "The Big Bang came from a single point smaller than an atom",
-#         "Quantum entanglement connecting particles across the universe",
-#         "The Voyager probe leaving our solar system after 46 years",
-#         "The James Webb telescope seeing the first galaxies ever formed",
-#         "Apollo 11 moon landing and what they left behind",
-#         "The ISS traveling at 17500 mph orbiting Earth 16 times daily",
-#         "SpaceX Starship the biggest rocket ever built",
-#         "The Mars rovers discovering ancient riverbeds",
-#         "Hubbles Deep Field photo 10000 galaxies in one image",
-#         "Plans to build a base on the Moon by 2030",
-#         "The Drake equation estimating alien civilizations",
-#         "The Fermi paradox where is everyone",
-#         "The Wow signal unexplained radio burst from space",
-#         "TRAPPIST-1 system with 7 Earth-sized planets",
-#         "Panspermia life spreading through asteroids",
-#         "A day on Venus is longer than a year on Venus",
-#         "The footprints on the Moon will last millions of years",
-#         "The Sun loses 4 million tons of mass every second",
-#         "There are more stars than grains of sand on Earth",
-#         "A teaspoon of neutron star weighs a billion tons",
-#         "Space smells like seared steak and hot metal",
-#         "What existed before the Big Bang",
-#         "Every atom in your body was made inside a star",
-#         "The largest black hole is 40 billion times the mass of our Sun",
-#         "Pulsars are the most accurate clocks in the universe",
-#         "The Pillars of Creation where new stars are born right now",
-#         "Sagittarius A the supermassive black hole in our galaxy",
-#         "In space your body grows 2 inches taller",
-#         "The Moon is moving away from Earth 1.5 inches per year",
-#         "One day on Jupiter is only 10 hours long",
-#         "Olympus Mons on Mars is 3 times taller than Mount Everest",
-#         "Venus spins backwards compared to most planets",
-#         "The rings of Saturn will disappear in 100 million years",
-#         "Solar flares that could knock out all electricity on Earth",
-#         "Space debris 27000 pieces of junk orbiting Earth right now",
-#         "The asteroid that killed the dinosaurs and what it left behind",
-#         "Yuri Gagarin the first human in space in 1961",
-#         "How astronauts sleep eat and go to the bathroom in space",
-#         "Terraforming Mars to make it habitable for humans",
-#         "Mining asteroids for gold platinum and rare minerals",
-#         "Dyson spheres built around stars to harvest all their energy",
-#         "Fast Radio Bursts mysterious signals from across the universe",
-#         "Oumuamua the mysterious interstellar object that visited our solar system",
-#         "Enceladus shooting water geysers into space from its ocean",
-#         "If the Sun were a door the Earth would be a coin",
-#         "The nearest star is so far light takes 4 years to reach us",
-#         "Saturn would float on water because it is less dense",
-#         "A year on Mercury is shorter than its day",
-#         "Stars older than the universe itself",
-#         "Io the most volcanically active world in the solar system",
-#         "Mercury shrinks a little more every year",
-#         "There are zombie stars that refuse to die",
-#         "Titan could support life unlike anything we know",
-#         "The search for biosignatures on exoplanet atmospheres"
-#     ]
-
-#     chosen_topic = random.choice(topics)
-#     print(f"📌 Topic chosen: {chosen_topic}")
-
-#     response = groq_client.chat.completions.create(
-#         model="llama-3.3-70b-versatile",
-#         messages=[
-#             {
-#                 "role": "system",
-#                 "content": """You are a YouTube Shorts script writer specializing in space and science facts.
-#                 Always respond in this exact JSON format with no extra text:
-#                 {
-#                     "title": "video title here",
-#                     "hook": "first 2 sentences to grab attention",
-#                     "facts": "3-4 interesting facts about the topic",
-#                     "cta": "call to action (follow for more space facts!)"
-#                 }"""
-#             },
-#             {
-#                 "role": "user",
-#                 "content": f"Write a YouTube Shorts script specifically about: {chosen_topic}. Make it exciting and mind-blowing!"
-#             }
-#         ]
-#     )
-#     return json.loads(response.choices[0].message.content)
-
-# def generate_voiceover(script):
-#     print("🎙️ Generating voiceover...")
-#     full_text = f"{script['hook']} {script['facts']} {script['cta']}"
-
-#     async def create_audio():
-#         communicate = edge_tts.Communicate(full_text, voice="en-US-GuyNeural")
-#         await communicate.save("voiceover.mp3")
-
-#     asyncio.run(create_audio())
-#     print("✅ Voiceover saved!")
-
-# def build_video(script):
-#     print("🎬 Building video with text overlay...")
-
-#     # Pick random background
-#     backgrounds = ["bg1.mp4", "bg2.mp4", "bg3.mp4", "bg4.mp4", "bg5.mp4"]
-#     available = [b for b in backgrounds if os.path.exists(b)]
-#     if not available:
-#         available = ["background.mp4"]
-#     background = random.choice(available)
-#     print(f"🎥 Using background: {background}")
-
-#     full_text = f"{script['hook']} {script['facts']}"
-#     words = full_text.split()
-#     lines = []
-#     current = []
-#     for word in words:
-#         current.append(word)
-#         if len(current) >= 6:
-#             lines.append(" ".join(current))
-#             current = []
-#     if current:
-#         lines.append(" ".join(current))
-
-#     display_text = "\n".join(lines[:4])
-#     display_text = display_text.replace("'", "").replace(":", "").replace(",", "")
-
-#     command = [
-#         ".\\ffmpeg.exe", "-y",
-#         "-stream_loop", "-1",
-#         "-t", "60",
-#         "-i", background,
-#         "-i", "voiceover.mp3",
-#         "-map", "0:v:0",
-#         "-map", "1:a:0",
-#         "-vf", (
-#             "scale=1080:1920:force_original_aspect_ratio=increase,"
-#             "crop=1080:1920,setsar=1,"
-#             f"drawtext=text='{display_text}':"
-#             "fontsize=50:fontcolor=white:"
-#             "x=(w-text_w)/2:y=h-th-100:"
-#             "box=1:boxcolor=black@0.5:boxborderw=10:"
-#             "font=Arial:line_spacing=10"
-#         ),
-#         "-c:v", "libx264",
-#         "-c:a", "aac",
-#         "-shortest",
-#         "-preset", "ultrafast",
-#         "-crf", "28",
-#         "-threads", "0",
-#         "output.mp4"
-#     ]
-
-#     subprocess.run(command, check=True)
-#     print("✅ Video saved as output.mp4!")
-
-# # Run the full pipeline
-# script = generate_script()
-# print(f"\n📹 Title: {script['title']}\n")
-# generate_voiceover(script)
-# build_video(script)
-# print("\n🚀 Video created!")
-
-# # Auto upload to YouTube
-# from upload import upload_video
-# upload_video(script['title'] + " #shorts #space #science")
-# print("\n✅ Uploaded to YouTube automatically!")
-
-from groq import Groq
-from dotenv import load_dotenv
-import os
+import glob
 import json
-import asyncio
-import edge_tts
-import subprocess
+import logging
+import os
 import random
+import shutil
+import subprocess
+import sys
+import time
 from datetime import datetime
+
+from dotenv import load_dotenv
+from groq import Groq
+
+from captions import generate_voiceover_with_captions
+from topics import TOPICS
 from upload import upload_video
 
 load_dotenv()
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s  %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("agent")
+
+# ── Config (override via .env) ───────────────────────────────────────────────
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+DRY_RUN = os.getenv("DRY_RUN", "").lower() in ("1", "true", "yes")
+VIDEO_SECONDS = int(os.getenv("VIDEO_SECONDS", "60"))
+HISTORY_FILE = "history.json"
+HISTORY_KEEP = 20
+
+# A handful of energetic English voices; one is picked per run for variety.
+VOICES = [
+    "en-US-GuyNeural",
+    "en-US-AndrewNeural",
+    "en-US-BrianNeural",
+    "en-US-ChristopherNeural",
+    "en-GB-RyanNeural",
+]
+
 groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
 
-def generate_script():
-    print("🤖 Generating script...")
 
-    topics = [
-        "Black holes and what happens if you fall in",
-        "Neutron stars spinning 700 times per second",
-        "White dwarfs slowly cooling for trillions of years",
-        "Magnetars with the strongest magnetic fields in the universe",
-        "Red giants swallowing their planets",
-        "Supernovas brighter than entire galaxies",
-        "Gamma ray bursts the most powerful explosions ever",
-        "Binary star systems orbiting each other",
-        "Rogue stars ejected from galaxies at millions of mph",
-        "Venus hotter than Mercury despite being farther from the Sun",
-        "Jupiters Great Red Spot storm bigger than Earth",
-        "Saturns rings made of billions of ice chunks",
-        "Titan Saturns moon with lakes of liquid methane",
-        "Europas ocean hidden under miles of ice",
-        "Uranus rotates on its side",
-        "Neptunes wind speeds of 1500 mph",
-        "Plutos heart-shaped nitrogen glacier",
-        "The Milky Way is on a collision course with Andromeda",
-        "Supermassive black holes at the center of every galaxy",
-        "The Great Attractor pulling everything including us",
-        "Quasars brighter than a trillion suns",
-        "Dark matter making up 27 percent of the universe",
-        "Dark energy causing the universe to expand faster",
-        "Time slows down near massive objects time dilation",
-        "Wormholes shortcuts through space-time",
-        "The universe might be inside a black hole",
-        "Parallel universes in the multiverse theory",
-        "Hawking radiation black holes slowly evaporate",
-        "Spaghettification what happens near a black hole",
-        "The Big Bang came from a single point smaller than an atom",
-        "Quantum entanglement connecting particles across the universe",
-        "The Voyager probe leaving our solar system after 46 years",
-        "The James Webb telescope seeing the first galaxies ever formed",
-        "Apollo 11 moon landing and what they left behind",
-        "The ISS traveling at 17500 mph orbiting Earth 16 times daily",
-        "SpaceX Starship the biggest rocket ever built",
-        "The Mars rovers discovering ancient riverbeds",
-        "Hubbles Deep Field photo 10000 galaxies in one image",
-        "Plans to build a base on the Moon by 2030",
-        "The Drake equation estimating alien civilizations",
-        "The Fermi paradox where is everyone",
-        "The Wow signal unexplained radio burst from space",
-        "TRAPPIST-1 system with 7 Earth-sized planets",
-        "Panspermia life spreading through asteroids",
-        "A day on Venus is longer than a year on Venus",
-        "The footprints on the Moon will last millions of years",
-        "The Sun loses 4 million tons of mass every second",
-        "There are more stars than grains of sand on Earth",
-        "A teaspoon of neutron star weighs a billion tons",
-        "Space smells like seared steak and hot metal",
-        "What existed before the Big Bang",
-        "Every atom in your body was made inside a star",
-        "The largest black hole is 40 billion times the mass of our Sun",
-        "Pulsars are the most accurate clocks in the universe",
-        "The Pillars of Creation where new stars are born right now",
-        "Sagittarius A the supermassive black hole in our galaxy",
-        "In space your body grows 2 inches taller",
-        "The Moon is moving away from Earth 1.5 inches per year",
-        "One day on Jupiter is only 10 hours long",
-        "Olympus Mons on Mars is 3 times taller than Mount Everest",
-        "Venus spins backwards compared to most planets",
-        "The rings of Saturn will disappear in 100 million years",
-        "Solar flares that could knock out all electricity on Earth",
-        "Space debris 27000 pieces of junk orbiting Earth right now",
-        "The asteroid that killed the dinosaurs and what it left behind",
-        "Yuri Gagarin the first human in space in 1961",
-        "How astronauts sleep eat and go to the bathroom in space",
-        "Terraforming Mars to make it habitable for humans",
-        "Mining asteroids for gold platinum and rare minerals",
-        "Dyson spheres built around stars to harvest all their energy",
-        "Fast Radio Bursts mysterious signals from across the universe",
-        "Oumuamua the mysterious interstellar object that visited our solar system",
-        "Enceladus shooting water geysers into space from its ocean",
-        "If the Sun were a door the Earth would be a coin",
-        "The nearest star is so far light takes 4 years to reach us",
-        "Saturn would float on water because it is less dense",
-        "A year on Mercury is shorter than its day",
-        "Stars older than the universe itself",
-        "Io the most volcanically active world in the solar system",
-        "Mercury shrinks a little more every year",
-        "There are zombie stars that refuse to die",
-        "Titan could support life unlike anything we know",
-        "The search for biosignatures on exoplanet atmospheres"
+# ── ffmpeg discovery ─────────────────────────────────────────────────────────
+def ffmpeg_bin():
+    """Use a system ffmpeg if present (CI/Linux), else the bundled ffmpeg.exe."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    local = os.path.join(os.path.dirname(__file__), "ffmpeg.exe")
+    if os.path.exists(local):
+        return local
+    raise RuntimeError("ffmpeg not found on PATH and ffmpeg.exe is missing.")
+
+
+# ── History (local de-duplication; gitignored, ephemeral in CI) ──────────────
+def load_history():
+    try:
+        with open(HISTORY_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def save_history(history):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as f:
+        json.dump(history[-HISTORY_KEEP:], f, indent=2)
+
+
+def pick_topic(history):
+    """Prefer a topic we haven't used recently; fall back to any if exhausted."""
+    used = {h["topic"] for h in history}
+    fresh = [t for t in TOPICS if t not in used]
+    return random.choice(fresh or TOPICS)
+
+
+# ── Script generation ────────────────────────────────────────────────────────
+def generate_script(history):
+    log.info("🤖 Generating script...")
+    topic = pick_topic(history)
+    log.info("📌 Topic: %s", topic)
+
+    recent_titles = [h["title"] for h in history[-10:]]
+    avoid = (
+        f"\nAvoid titles similar to these recent ones: {recent_titles}"
+        if recent_titles else ""
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a YouTube Shorts script writer specializing in space and "
+                "science facts. Respond ONLY with JSON in this exact shape:\n"
+                '{"title": "punchy <=70 char title", '
+                '"hook": "first 1-2 sentences that grab attention", '
+                '"facts": "3-4 short punchy facts, conversational", '
+                '"cta": "short call to action"}'
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Write a YouTube Shorts script specifically about: {topic}. "
+                f"Make it exciting and mind-blowing.{avoid}"
+            ),
+        },
     ]
 
-    chosen_topic = random.choice(topics)
-    print(f"📌 Topic chosen: {chosen_topic}")
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            response = groq_client.chat.completions.create(
+                model=GROQ_MODEL,
+                messages=messages,
+                temperature=0.9,
+                response_format={"type": "json_object"},
+            )
+            script = json.loads(response.choices[0].message.content)
+            if not all(k in script for k in ("title", "hook", "facts", "cta")):
+                raise ValueError(f"missing keys in script: {list(script)}")
+            script["topic"] = topic
+            return script
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            last_err = e
+            log.warning("Script parse failed (attempt %d/3): %s", attempt, e)
+            time.sleep(1.5 * attempt)
 
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "system",
-                "content": """You are a YouTube Shorts script writer specializing in space and science facts.
-                Always respond in this exact JSON format with no extra text:
-                {
-                    "title": "video title here",
-                    "hook": "first 2 sentences to grab attention",
-                    "facts": "3-4 interesting facts about the topic",
-                    "cta": "call to action (follow for more space facts!)"
-                }"""
-            },
-            {
-                "role": "user",
-                "content": f"Write a YouTube Shorts script specifically about: {chosen_topic}. Make it exciting and mind-blowing!"
-            }
-        ]
-    )
-    return json.loads(response.choices[0].message.content)
+    raise RuntimeError(f"Could not get valid script after 3 attempts: {last_err}")
 
-def generate_voiceover(script, filename):
-    print("🎙️ Generating voiceover...")
-    full_text = f"{script['hook']} {script['facts']} {script['cta']}"
 
-    async def create_audio():
-        communicate = edge_tts.Communicate(full_text, voice="en-US-GuyNeural")
-        await communicate.save(filename)
+# ── Background ───────────────────────────────────────────────────────────────
+def pick_background():
+    """Return an existing background clip, or generate a starfield fallback."""
+    candidates = ["bg1.mp4", "bg2.mp4", "bg3.mp4", "bg4.mp4", "bg5.mp4", "background.mp4"]
+    available = [b for b in candidates if os.path.exists(b)]
+    if available:
+        bg = random.choice(available)
+        log.info("🎥 Background: %s", bg)
+        return bg
 
-    asyncio.run(create_audio())
-    print("✅ Voiceover saved!")
+    log.info("🎥 No background clip found — generating a starfield fallback.")
+    bg = "background_generated.mp4"
+    subprocess.run([
+        ffmpeg_bin(), "-y",
+        "-f", "lavfi",
+        "-i", f"color=c=0x05050f:s=1080x1920:r=30:d={VIDEO_SECONDS}",
+        "-vf", "noise=alls=22:allf=t,vignette=PI/4,eq=saturation=1.2",
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "30",
+        bg,
+    ], check=True)
+    return bg
 
-def build_video(script, audio_file, output_file):
-    print("🎬 Building video with text overlay...")
 
-    backgrounds = ["bg1.mp4", "bg2.mp4", "bg3.mp4", "bg4.mp4", "bg5.mp4", "background.mp4"]
-    available = [b for b in backgrounds if os.path.exists(b)]
-    background = random.choice(available)
-    print(f"🎥 Using background: {background}")
-
-    full_text = f"{script['hook']} {script['facts']}"
-    words = full_text.split()
-    lines = []
-    current = []
-    for word in words:
-        current.append(word)
-        if len(current) >= 6:
-            lines.append(" ".join(current))
-            current = []
-    if current:
-        lines.append(" ".join(current))
-
-    display_text = "\n".join(lines[:4])
-    display_text = display_text.replace("'", "").replace(":", "").replace(",", "")
+# ── Video assembly ───────────────────────────────────────────────────────────
+def build_video(audio_file, ass_file, output_file):
+    log.info("🎬 Building video with synced captions...")
+    background = pick_background()
 
     command = [
-        ".\\ffmpeg.exe", "-y",
+        ffmpeg_bin(), "-y",
         "-stream_loop", "-1",
-        "-t", "60",
+        "-t", str(VIDEO_SECONDS),
         "-i", background,
         "-i", audio_file,
         "-map", "0:v:0",
@@ -379,36 +180,95 @@ def build_video(script, audio_file, output_file):
         "-vf", (
             "scale=1080:1920:force_original_aspect_ratio=increase,"
             "crop=1080:1920,setsar=1,"
-            f"drawtext=text='{display_text}':"
-            "fontsize=50:fontcolor=white:"
-            "x=(w-text_w)/2:y=h-th-100:"
-            "box=1:boxcolor=black@0.5:boxborderw=10:"
-            "font=Arial:line_spacing=10"
+            f"ass={ass_file}"
         ),
         "-c:v", "libx264",
         "-c:a", "aac",
         "-shortest",
-        "-preset", "ultrafast",
-        "-crf", "28",
+        "-preset", "veryfast",
+        "-crf", "26",
+        "-pix_fmt", "yuv420p",
         "-threads", "0",
-        output_file
+        output_file,
     ]
-
     subprocess.run(command, check=True)
-    print(f"✅ Video saved as {output_file}!")
+    log.info("✅ Video saved: %s", output_file)
 
-# ▶️ Run the full pipeline
-timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-audio_file = f"voiceover_{timestamp}.mp3"
-video_file = f"output_{timestamp}.mp4"
 
-script = generate_script()
-print(f"\n📹 Title: {script['title']}\n")
-generate_voiceover(script, audio_file)
-build_video(script, audio_file, video_file)
+# ── Metadata ─────────────────────────────────────────────────────────────────
+STOPWORDS = {"the", "and", "what", "with", "from", "into", "your", "every",
+             "their", "that", "this", "for", "are", "you", "its", "a", "an",
+             "of", "in", "on", "to", "is", "it", "if", "by", "at"}
 
-print("\n📤 Uploading to YouTube...")
-upload_video(script['title'] + " #shorts #space #science")
 
-print("\n✅ Done! New unique Short uploaded to YouTube!")
-print(f"📁 Saved locally as: {video_file}")
+def build_tags(script):
+    """Derive topical tags from the chosen topic + a stable space-base set."""
+    base = ["space", "facts", "shorts", "science", "nasa", "universe", "astronomy"]
+    words = [w.strip(".,").lower() for w in script["topic"].split()]
+    extra = [w for w in words if len(w) > 3 and w not in STOPWORDS]
+    seen, tags = set(), []
+    for t in base + extra:
+        if t not in seen:
+            seen.add(t)
+            tags.append(t)
+    return tags[:15]
+
+
+def build_description(script):
+    hashtags = "#shorts #space #science #astronomy #universe #nasa"
+    return (
+        f"{script['hook']}\n\n{script['facts']}\n\n{script['cta']}\n\n{hashtags}"
+    )
+
+
+# ── Cleanup ──────────────────────────────────────────────────────────────────
+def clean_old_artifacts():
+    for pattern in ("voiceover_*.mp3", "captions_*.ass"):
+        for f in glob.glob(pattern):
+            try:
+                os.remove(f)
+            except OSError:
+                pass
+
+
+# ── Pipeline ─────────────────────────────────────────────────────────────────
+def main():
+    clean_old_artifacts()
+    history = load_history()
+
+    stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    audio_file = f"voiceover_{stamp}.mp3"
+    ass_file = f"captions_{stamp}.ass"
+    video_file = f"output_{stamp}.mp4"
+
+    script = generate_script(history)
+    log.info("📹 Title: %s", script["title"])
+
+    spoken = f"{script['hook']} {script['facts']} {script['cta']}"
+    voice = random.choice(VOICES)
+    log.info("🎙️ Voiceover (%s) + synced captions...", voice)
+    generate_voiceover_with_captions(spoken, audio_file, ass_file, voice=voice)
+
+    build_video(audio_file, ass_file, video_file)
+
+    title = f"{script['title']} #shorts #space #science"[:100]
+    if DRY_RUN:
+        log.info("🧪 DRY_RUN set — skipping YouTube upload.")
+        log.info("    Would upload %s as: %s", video_file, title)
+    else:
+        log.info("📤 Uploading to YouTube...")
+        upload_video(title, build_description(script), video_file,
+                     tags=build_tags(script))
+
+    history.append({"topic": script["topic"], "title": script["title"], "at": stamp})
+    save_history(history)
+
+    log.info("✅ Done! Saved locally as: %s", video_file)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except Exception as e:  # noqa: BLE001 — top-level guard: log and fail CI loudly
+        log.error("💥 Agent failed: %s", e)
+        sys.exit(1)
