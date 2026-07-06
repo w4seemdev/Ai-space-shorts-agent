@@ -1,9 +1,7 @@
 name: Daily Space Shorts Agent
 
 on:
-  schedule:
-    - cron: "0 7 * * *" # Every day at 7:00 AM UTC (9:00 AM Jordan time)
-  workflow_dispatch: # Also allows manual trigger
+  workflow_dispatch: # Manual trigger only (daily schedule disabled)
 
 # Never run two uploads at once (e.g. schedule + manual overlap).
 concurrency:
