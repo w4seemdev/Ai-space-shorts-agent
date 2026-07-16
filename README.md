@@ -2,7 +2,7 @@
 
 An autonomous agent that produces and publishes a unique space/science **YouTube Short every day** — no human in the loop.
 
-It writes a script with an LLM, narrates it, burns in **word-synced captions**, renders a vertical 1080×1920 video, and uploads it to YouTube. A GitHub Action runs the whole thing on a daily cron.
+It writes a script with an LLM, narrates it, burns in **word-synced captions**, renders a vertical 1080×1920 video, and uploads it to YouTube. A GitHub Actions workflow runs the whole thing hands-free — trigger it from the Actions tab, or add a one-line `schedule:` block for a daily cron.
 
 ## How it works
 
@@ -25,7 +25,7 @@ upload.py ───► upload_video()        YouTube Data API v3 (public Short)
 | `captions.py` | edge-tts voiceover **and** TikTok-style word-synced captions in one pass |
 | `topics.py` | The pool of 80+ space topics to sample from |
 | `upload.py` | YouTube OAuth + upload |
-| `.github/workflows/daily.yml` | Daily cron that runs the agent |
+| `.github/workflows/daily.yml` | CI workflow that runs the agent end to end |
 
 ## Local setup
 
@@ -52,9 +52,9 @@ $env:DRY_RUN=1; python agent.py   # build only, skip the upload (great for testi
 
 A background clip is optional: drop a `background.mp4` (or `bg1.mp4`…`bg5.mp4`) in the folder, otherwise the agent generates a starfield fallback so it never hard-fails.
 
-## CI (daily automation)
+## CI (automation)
 
-The workflow runs at **07:00 UTC** daily (also triggerable manually from the Actions tab). It needs three repository secrets:
+The workflow is triggered manually from the **Actions** tab (the daily cron is disabled by default — re-enable it by adding a `schedule:` trigger in `daily.yml`). It needs three repository secrets:
 
 | Secret | Value |
 |--------|-------|
@@ -64,4 +64,8 @@ The workflow runs at **07:00 UTC** daily (also triggerable manually from the Act
 
 ## ⚠️ Security
 
-`.env`, `token.json`, and `client_secrets.json` hold live credentials and are gitignored. If they were ever committed in the past, treat them as **compromised**: rotate the Groq key and revoke/regenerate the YouTube OAuth credentials, since git history and forks may retain old copies.
+`.env`, `token.json`, and `client_secrets.json` are gitignored — keep them local (or in GitHub Secrets for CI) and never commit them.
+
+---
+
+Built by [Waseem Abu Fares](https://github.com/w4seemdev)
