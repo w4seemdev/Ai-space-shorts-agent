@@ -1,8 +1,8 @@
 # 🚀 AI Space Shorts Agent
 
-An autonomous agent that produces and publishes a unique space/science **YouTube Short every day** — no human in the loop.
+An autonomous agent that produces and publishes a unique space/science **YouTube Short every day**, no human in the loop.
 
-It writes a script with an LLM, narrates it, burns in **word-synced captions**, renders a vertical 1080×1920 video, and uploads it to YouTube. A GitHub Actions workflow runs the whole thing hands-free — trigger it from the Actions tab, or add a one-line `schedule:` block for a daily cron.
+It writes a script with an LLM, narrates it, burns in **word-synced captions**, renders a vertical 1080×1920 video, and uploads it to YouTube. A GitHub Actions workflow runs the whole thing hands-free, trigger it from the Actions tab, or add a one-line `schedule:` block for a daily cron.
 
 ## How it works
 
@@ -36,12 +36,12 @@ pip install -r requirements.txt
 copy .env.example .env           # then add your GROQ_API_KEY
 ```
 
-You also need (both **gitignored** — never commit them):
+You also need (both **gitignored**, never commit them):
 
-- `client_secrets.json` — an OAuth **desktop** client from the [Google Cloud Console](https://console.cloud.google.com/) with the YouTube Data API enabled.
-- `token.json` — generated automatically the first time you run and sign in.
+- `client_secrets.json`, an OAuth **desktop** client from the [Google Cloud Console](https://console.cloud.google.com/) with the YouTube Data API enabled.
+- `token.json`, generated automatically the first time you run and sign in.
 
-`ffmpeg` must be available — either on your `PATH` or as a local `ffmpeg.exe` (the agent auto-detects).
+`ffmpeg` must be available, either on your `PATH` or as a local `ffmpeg.exe` (the agent auto-detects).
 
 ## Run
 
@@ -54,7 +54,7 @@ A background clip is optional: drop a `background.mp4` (or `bg1.mp4`…`bg5.mp4`
 
 ## CI (automation)
 
-The workflow is triggered manually from the **Actions** tab (the daily cron is disabled by default — re-enable it by adding a `schedule:` trigger in `daily.yml`). It needs three repository secrets:
+The workflow is triggered manually from the **Actions** tab (the daily cron is disabled by default, re-enable it by adding a `schedule:` trigger in `daily.yml`). It needs three repository secrets:
 
 | Secret | Value |
 |--------|-------|
@@ -64,7 +64,7 @@ The workflow is triggered manually from the **Actions** tab (the daily cron is d
 
 ## ⚠️ Security
 
-`.env`, `token.json`, and `client_secrets.json` are gitignored — keep them local (or in GitHub Secrets for CI) and never commit them.
+`.env`, `token.json`, and `client_secrets.json` are gitignored, keep them local (or in GitHub Secrets for CI) and never commit them.
 
 ---
 
