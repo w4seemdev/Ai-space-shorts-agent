@@ -9,17 +9,35 @@ ffmpeg's `ass` filter is the single biggest retention upgrade for Shorts.
 """
 
 import asyncio
-import re
+import logging
+import os
+import time
 
 import edge_tts
+
+log = logging.getLogger("captions")
 
 # 100-nanosecond "ticks" per millisecond (edge-tts offsets are in ticks).
 TICKS_PER_MS = 10_000
 
-# How many words to show on screen at once (Shorts caption "chunk").
-WORDS_PER_CHUNK = 3
+# Caption chunking: budget by CHARACTERS, not words — at fontsize 92 the usable
+# width (1080 minus margins) fits ~15 uppercase chars, so longer chunks clip.
+MAX_CHUNK_CHARS = 14
+MAX_CHUNK_WORDS = 3
+# A speech gap longer than this starts a new caption (recovers sentence breaks —
+# edge-tts WordBoundary text arrives punctuation-stripped).
+PAUSE_BREAK_MS = 300
 # Don't let a caption linger more than this after its last word (ms).
 MAX_TAIL_MS = 350
+
+# TTS reliability: Microsoft's endpoint intermittently rejects datacenter IPs
+# (GitHub runners especially), so synthesis retries with backoff + voice rotation.
+TTS_ATTEMPTS = 3
+# A voiceover for even a very short script exceeds this; smaller output = failure.
+MIN_AUDIO_BYTES = 20_000
+# edge-tts emits 24 kHz mono mp3 at 48 kbps; used to estimate duration when the
+# service returns audio but no timing events (48 kbps == 48 bits per ms).
+EDGE_TTS_KBPS = 48
 
 
 def _ass_timestamp(ms: float) -> str:
@@ -39,14 +57,41 @@ def _clean_word(word: str) -> str:
     return word.upper()
 
 
+def _chunk_boundaries(boundaries):
+    """Group word boundaries into caption chunks that never overflow the frame.
+
+    A chunk closes when adding the next word would exceed MAX_CHUNK_CHARS, when
+    it already holds MAX_CHUNK_WORDS, or after a speech pause > PAUSE_BREAK_MS.
+    """
+    chunks, current, cur_len = [], [], 0
+    for i, b in enumerate(boundaries):
+        wlen = len(b["text"].strip())
+        if current and (cur_len + 1 + wlen > MAX_CHUNK_CHARS
+                        or len(current) >= MAX_CHUNK_WORDS):
+            chunks.append(current)
+            current, cur_len = [], 0
+        current.append(b)
+        cur_len += (1 if cur_len else 0) + wlen
+
+        nxt = boundaries[i + 1] if i + 1 < len(boundaries) else None
+        if nxt and nxt["start"] - (b["start"] + b["dur"]) > PAUSE_BREAK_MS:
+            chunks.append(current)
+            current, cur_len = [], 0
+    if current:
+        chunks.append(current)
+    return chunks
+
+
 def _build_ass(boundaries, font: str, primary: str, secondary: str,
                outline: str, fontsize: int, margin_v: int) -> str:
     """Turn a list of (start_ms, dur_ms, text) word boundaries into ASS text."""
+    # WrapStyle 0 = smart wrapping: a rare oversized chunk wraps to a second
+    # line instead of clipping off both screen edges.
     header = f"""[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
 PlayResY: 1920
-WrapStyle: 2
+WrapStyle: 0
 ScaledBorderAndShadow: yes
 
 [V4+ Styles]
@@ -57,18 +102,7 @@ Style: Pop,{font},{fontsize},{primary},{secondary},{outline},&H64000000,-1,0,0,0
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
 
-    # Group consecutive words into fixed-size chunks, breaking on sentence-ending
-    # punctuation so a caption never straddles two sentences.
-    chunks = []
-    current = []
-    for b in boundaries:
-        current.append(b)
-        ends_sentence = bool(re.search(r"[.!?]$", b["text"].strip()))
-        if len(current) >= WORDS_PER_CHUNK or ends_sentence:
-            chunks.append(current)
-            current = []
-    if current:
-        chunks.append(current)
+    chunks = _chunk_boundaries(boundaries)
 
     lines = []
     for i, chunk in enumerate(chunks):
@@ -125,6 +159,16 @@ def _expand_sentence(start_ms, dur_ms, text):
     return out
 
 
+def _estimate_boundaries(text, audio_path):
+    """No timing events at all — spread words over the estimated mp3 duration.
+
+    Captions lose word-perfect sync but the video still ships with readable,
+    roughly-synced captions instead of none.
+    """
+    dur_ms = os.path.getsize(audio_path) * 8 / EDGE_TTS_KBPS
+    return _expand_sentence(0, dur_ms, text)
+
+
 async def _synthesize(text, audio_path, voice, rate, pitch):
     """Stream TTS audio to disk and collect timing boundaries.
 
@@ -170,6 +214,7 @@ def generate_voiceover_with_captions(
     audio_path,
     ass_path,
     voice="en-US-GuyNeural",
+    fallback_voices=None,
     rate="+8%",
     pitch="+0Hz",
     font="DejaVu Sans",
@@ -181,9 +226,32 @@ def generate_voiceover_with_captions(
 ):
     """Create `audio_path` (mp3) and `ass_path` (synced captions) from `text`.
 
-    Returns the list of word boundaries (handy for tests / debugging).
+    Retries synthesis with backoff, rotating through `fallback_voices` (blocks
+    can be endpoint/voice-specific). Returns the list of word boundaries.
     """
-    boundaries = asyncio.run(_synthesize(text, audio_path, voice, rate, pitch))
+    voices = [voice] + [v for v in (fallback_voices or []) if v != voice]
+    last_err = None
+    boundaries = None
+    for attempt in range(TTS_ATTEMPTS):
+        v = voices[min(attempt, len(voices) - 1)]
+        try:
+            boundaries = asyncio.run(_synthesize(text, audio_path, v, rate, pitch))
+            size = os.path.getsize(audio_path) if os.path.exists(audio_path) else 0
+            if size < MIN_AUDIO_BYTES:
+                raise RuntimeError(f"TTS produced undersized audio ({size} bytes)")
+            break
+        except Exception as e:  # noqa: BLE001 — any TTS/network failure: retry is always right unattended
+            last_err = e
+            log.warning("TTS attempt %d/%d (%s) failed: %s",
+                        attempt + 1, TTS_ATTEMPTS, v, e)
+            time.sleep(2 * (attempt + 1))
+    else:
+        raise RuntimeError(f"TTS failed after {TTS_ATTEMPTS} attempts: {last_err}")
+
+    if not boundaries:
+        log.warning("TTS returned no timing events — estimating caption timings.")
+        boundaries = _estimate_boundaries(text, audio_path)
+
     ass = _build_ass(
         boundaries, font=font, primary=primary, secondary=secondary,
         outline=outline, fontsize=fontsize, margin_v=margin_v,

@@ -1,7 +1,8 @@
-# Space Shorts Agent dependencies
-groq>=0.11,<2
-python-dotenv>=1.0
-edge-tts>=6.1
-google-auth>=2.0
-google-auth-oauthlib>=1.2
-google-api-python-client>=2.0
+# Space Shorts Agent dependencies — pinned to locally-verified versions so a
+# surprise upstream release can never break the unattended daily run.
+groq==1.2.0
+python-dotenv==1.2.2
+edge-tts==7.2.8
+google-auth==2.50.0
+google-auth-oauthlib==1.3.1
+google-api-python-client==2.195.0

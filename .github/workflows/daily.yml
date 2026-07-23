@@ -1,7 +1,13 @@
 name: Daily Space Shorts Agent
 
 on:
-  workflow_dispatch: # Manual trigger only (daily schedule disabled)
+  schedule:
+    - cron: "0 16 * * *" # 16:00 UTC = noon US Eastern (prime Shorts window); 7 PM in Jordan
+  workflow_dispatch: # Also allows manual trigger
+
+permissions:
+  contents: write # push history.json back (the daily commit also keeps this schedule from being auto-disabled)
+  issues: write # failure alerts
 
 # Never run two uploads at once (e.g. schedule + manual overlap).
 concurrency:
@@ -29,9 +35,6 @@ jobs:
       - name: Install Python packages
         run: pip install -r requirements.txt
 
-      - name: Download background video
-        run: curl -L "https://download.samplelib.com/mp4/sample-5s.mp4" -o background.mp4
-
       - name: Write secrets to local files
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
@@ -44,3 +47,39 @@ jobs:
 
       - name: Run agent (generates + uploads in one pass)
         run: python agent.py
+
+      - name: Persist topic history (daily commit also keeps the cron alive)
+        if: success()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add history.json
+          git diff --cached --quiet || git commit -m "chore: record daily topic history"
+          git pull --rebase origin main
+          git push
+
+      - name: Upload debug artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: failed-run-${{ github.run_id }}
+          path: |
+            voiceover_*.mp3
+            captions_*.ass
+            output_*.mp4
+            background_generated.mp4
+          retention-days: 5
+          if-no-files-found: ignore
+
+      - name: Alert on failure (opens/updates an issue so it reaches your email)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          existing=$(gh issue list --state open --search "Daily short failing in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Failed again: $run_url"
+          else
+            gh issue create --title "Daily short failing" --body "The daily upload failed. Latest run: $run_url"
+          fi

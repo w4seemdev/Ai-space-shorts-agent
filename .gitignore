@@ -18,11 +18,12 @@ node_modules/
 dist/
 
 # Media outputs & generated artifacts
+# (history.json IS tracked: CI commits it daily for topic de-duplication)
 *.mp4
 *.mp3
 *.ass
 subtitles.vtt
-history.json
+stars_bg.png
 
 # Bundled binaries (CI installs ffmpeg via apt; never commit the 197MB exe)
 *.exe
